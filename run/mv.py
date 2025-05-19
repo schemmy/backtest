@@ -12,6 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import backtrader as bt
 from indicator.kdj import KDJ
 from indicator.bbi import BBI
+from data_api.yahoo_api import download_stock_data
 
 
 # Create a Stratey
@@ -149,17 +150,36 @@ if __name__ == '__main__':
     # Datas are in a subfolder of the samples. Need to find where the script is
     # because it could have been called from anywhere
     modpath = os.path.dirname(os.path.abspath(sys.argv[0]))
-    datapath = os.path.join(modpath, '../data/orcl-1995-2014_close.txt')
+
+    symbol = 'MSFT'
+    datapath = os.path.join(modpath, '../data/{}.csv'.format(symbol.lower()))
+
+    # Check if data file exists, if not download it
+    if not os.path.exists(datapath):
+        print(f"Data file not found at {datapath}, downloading...")
+        # Create data directory if it doesn't exist
+        os.makedirs(os.path.dirname(datapath), exist_ok=True)
+        # Download the data
+        download_stock_data(symbol, period='5y')
 
     # Create a Data Feed
-    data = bt.feeds.YahooFinanceCSVData(
+    data = bt.feeds.GenericCSVData(
         dataname=datapath,
         # Do not pass values before this date
-        fromdate=datetime.datetime(2010, 1, 1),
+        fromdate=datetime.datetime(2025, 1, 1),
         # Do not pass values before this date
-        todate=datetime.datetime(2015, 1, 1),
+        todate=datetime.datetime(2025, 5, 30),
         # Do not pass values after this date
-        reverse=False)
+        reverse=False,
+        # Column mappings
+        dtformat='%Y-%m-%d',  # Date format
+        datetime=0,  # Date column index
+        open=4,      # Open column index
+        high=2,      # High column index
+        low=3,       # Low column index
+        close=1,     # Close column index
+        volume=5,    # Volume column index
+        openinterest=-1)  # No open interest column
 
     # Add the Data Feed to Cerebro
     cerebro.adddata(data)
@@ -168,7 +188,7 @@ if __name__ == '__main__':
     cerebro.broker.setcash(1000.0)
 
     # Add a FixedSize sizer according to the stake
-    cerebro.addsizer(bt.sizers.PercentSizer, percents=50)
+    cerebro.addsizer(bt.sizers.PercentSizer, percents=80)
 
     # Set the commission
     cerebro.broker.setcommission(commission=0.0)
